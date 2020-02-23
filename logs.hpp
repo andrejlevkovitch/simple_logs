@@ -132,7 +132,7 @@ boost::format messageHandler(T messageFormat, Args... args) {
   return doFormat(std::move(format), args...);
 }
 
-/**\brief print log message
+/**\brief print log messages to console
  */
 void log(Severity                                           severity,
          std::string_view                                   fileName,
@@ -199,14 +199,6 @@ void log(Severity                                           severity,
 #  define LOG_DEBUG(...)
 #  define LOG_WARNING(...)
 #  define LOG_ERROR(...)
-#  define LOG_FAILURE(...)                                                     \
-    LOG_FORMAT(logs::Severity::Failure, logs::messageHandler(__VA_ARGS__))
-#  define LOG_THROW(ExceptionType, ...)                                        \
-    {                                                                          \
-      boost::format fmt = logs::messageHandler(__VA_ARGS__);                   \
-      LOG_FORMAT(logs::Severity::Throw, fmt);                                  \
-      throw ExceptionType{fmt.str()};                                          \
-    }
 
 #else
 
@@ -222,14 +214,21 @@ void log(Severity                                           severity,
 #  define LOG_ERROR(...)                                                       \
     LOG_FORMAT(logs::Severity::Error, logs::messageHandler(__VA_ARGS__))
 
-#  define LOG_FAILURE(...)                                                     \
-    LOG_FORMAT(logs::Severity::Failure, logs::messageHandler(__VA_ARGS__))
-
-#  define LOG_THROW(ExceptionType, ...)                                        \
-    {                                                                          \
-      boost::format fmt = logs::messageHandler(__VA_ARGS__);                   \
-      LOG_FORMAT(logs::Severity::Throw, fmt);                                  \
-      throw ExceptionType{fmt.str()};                                          \
-    }
-
 #endif
+
+/**\brief print log and terminate program
+ * \warning work even if `NDEBUG` defined
+ */
+#define LOG_FAILURE(...)                                                       \
+  LOG_FORMAT(logs::Severity::Failure, logs::messageHandler(__VA_ARGS__))
+
+/**\brief print log and generate specified exception
+ * \param ExceptionType type of generated exception
+ * \warning work even if `NDEBUG` defined
+ */
+#define LOG_THROW(ExceptionType, ...)                                          \
+  {                                                                            \
+    boost::format fmt = logs::messageHandler(__VA_ARGS__);                     \
+    LOG_FORMAT(logs::Severity::Throw, fmt);                                    \
+    throw ExceptionType{fmt.str()};                                            \
+  }
