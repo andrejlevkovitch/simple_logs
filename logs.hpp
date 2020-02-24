@@ -38,7 +38,7 @@
 namespace std {
 /**\brief print time
  */
-std::ostream &operator<<(
+inline std::ostream &operator<<(
     std::ostream &                                            stream,
     const std::chrono::time_point<std::chrono::system_clock> &timePoint) {
   std::time_t t = std::chrono::system_clock::to_time_t(timePoint);
@@ -99,14 +99,14 @@ enum class Severity { Info, Debug, Warning, Error, Failure, Throw };
 
 /**\return safety format object for user message
  */
-boost::format getLogFormat(std::string_view format) {
+inline boost::format getLogFormat(std::string_view format) {
   boost::format retval{std::string{format}};
   retval.exceptions(boost::io::all_error_bits ^ (boost::io::too_few_args_bit |
                                                  boost::io::too_many_args_bit));
   return retval;
 }
 
-boost::format doFormat(boost::format format) {
+inline boost::format doFormat(boost::format format) {
   return format;
 }
 
@@ -134,13 +134,13 @@ boost::format messageHandler(T messageFormat, Args... args) {
 
 /**\brief print log messages to console
  */
-void log(Severity                                           severity,
-         std::string_view                                   fileName,
-         int                                                lineNumber,
-         std::string_view                                   functionName,
-         std::chrono::time_point<std::chrono::system_clock> timePoint,
-         std::thread::id                                    threadId,
-         boost::format                                      message) {
+inline void log(Severity                                           severity,
+                std::string_view                                   fileName,
+                int                                                lineNumber,
+                std::string_view                                   functionName,
+                std::chrono::time_point<std::chrono::system_clock> timePoint,
+                std::thread::id                                    threadId,
+                boost::format                                      message) {
   boost::format standardLogFormat{STANDARD_LOG_FORMAT};
   standardLogFormat.exceptions(boost::io::all_error_bits ^
                                boost::io::too_many_args_bit);
