@@ -42,13 +42,13 @@
 #define FAILURE_SEVERITY "FLR"
 
 // for bash console
-#define TERMINAL_NO_COLOR "\033[0m"
-#define TERMINAL_BLUE     "\033[1;34m"
-#define TERMINAL_GREEN    "\033[1;32m"
-#define TERMINAL_YELLOW   "\033[1;33m"
-#define TERMINAL_RED      "\033[1;31m"
-
 #ifdef COLORIZED
+#  define TERMINAL_NO_COLOR "\033[0m"
+#  define TERMINAL_BLUE     "\033[1;34m"
+#  define TERMINAL_GREEN    "\033[1;32m"
+#  define TERMINAL_YELLOW   "\033[1;33m"
+#  define TERMINAL_RED      "\033[1;31m"
+
 #  define COLOR_INFO    TERMINAL_BLUE
 #  define COLOR_DEBUG   TERMINAL_GREEN
 #  define COLOR_WARNING TERMINAL_YELLOW
@@ -56,6 +56,8 @@
 #  define COLOR_FAILURE TERMINAL_RED
 #  define COLOR_THROW   TERMINAL_YELLOW
 #else
+#  define TERMINAL_NO_COLOR ""
+
 #  define COLOR_INFO    ""
 #  define COLOR_DEBUG   ""
 #  define COLOR_WARNING ""
