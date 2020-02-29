@@ -7,7 +7,7 @@
  * 8 items defined by:
  *
  * - `SEVERITY`
- * - `CONSOLE_COLOR`
+ * - `TERMINAL_COLOR` - specially for logging to terminal
  * - `FILE_NAME`
  * - `LINE_NUMBER`
  * - `FUNCTION_NAME`
@@ -17,9 +17,9 @@
  *
  * You can combain the defines as you want.
  *
- * Also you must know that after every `CONSOLE_COLOR` must be
- * `CONSOLE_NO_COLOR`, otherwise you can get unexpected colorized output.
- * `CONSOLE_COLOR` accept only if `COLORIZED` defined.
+ * Also you must know that after every `TERMINAL_COLOR` must be
+ * `TERMINAL_NO_COLOR`, otherwise you can get unexpected colorized output.
+ * `TERMINAL_COLOR` accept only if `COLORIZED` defined.
  *
  * \warning Logging macroses produce output only if macro `NDEBUG` not defined,
  * BUT! `LOG_THROW` and `LOG_FAILURE` will work even if `NDEBUG` defined!
@@ -42,19 +42,19 @@
 #define FAILURE_SEVERITY "FLR"
 
 // for bash console
-#define CONSOLE_NO_COLOR "\033[0m"
-#define CONSOLE_BLUE     "\033[1;34m"
-#define CONSOLE_GREEN    "\033[1;32m"
-#define CONSOLE_YELLOW   "\033[1;33m"
-#define CONSOLE_RED      "\033[1;31m"
+#define TERMINAL_NO_COLOR "\033[0m"
+#define TERMINAL_BLUE     "\033[1;34m"
+#define TERMINAL_GREEN    "\033[1;32m"
+#define TERMINAL_YELLOW   "\033[1;33m"
+#define TERMINAL_RED      "\033[1;31m"
 
 #ifdef COLORIZED
-#  define COLOR_INFO    CONSOLE_BLUE
-#  define COLOR_DEBUG   CONSOLE_GREEN
-#  define COLOR_WARNING CONSOLE_YELLOW
-#  define COLOR_ERROR   CONSOLE_RED
-#  define COLOR_FAILURE CONSOLE_RED
-#  define COLOR_THROW   CONSOLE_YELLOW
+#  define COLOR_INFO    TERMINAL_BLUE
+#  define COLOR_DEBUG   TERMINAL_GREEN
+#  define COLOR_WARNING TERMINAL_YELLOW
+#  define COLOR_ERROR   TERMINAL_RED
+#  define COLOR_FAILURE TERMINAL_RED
+#  define COLOR_THROW   TERMINAL_YELLOW
 #else
 #  define COLOR_INFO    ""
 #  define COLOR_DEBUG   ""
@@ -65,21 +65,21 @@
 #endif
 
 // All args set in specific order for formatting
-#define SEVERITY      "%1%"
-#define CONSOLE_COLOR "%2%"
-#define FILE_NAME     "%3%"
-#define LINE_NUMBER   "%4%"
-#define FUNCTION_NAME "%5%"
-#define TIME_POINT    "%6%"
-#define THREAD_ID     "%7%"
-#define MESSAGE       "%8%"
+#define SEVERITY       "%1%"
+#define TERMINAL_COLOR "%2%"
+#define FILE_NAME      "%3%"
+#define LINE_NUMBER    "%4%"
+#define FUNCTION_NAME  "%5%"
+#define TIME_POINT     "%6%"
+#define THREAD_ID      "%7%"
+#define MESSAGE        "%8%"
 
 #ifndef STANDARD_LOG_FORMAT
 /// default logging format
 #  define STANDARD_LOG_FORMAT                                                  \
-    CONSOLE_COLOR SEVERITY CONSOLE_NO_COLOR                                    \
+    TERMINAL_COLOR SEVERITY TERMINAL_NO_COLOR                                  \
         ":" FILE_NAME ":" LINE_NUMBER                                          \
-        " " CONSOLE_COLOR MESSAGE CONSOLE_NO_COLOR
+        " " TERMINAL_COLOR MESSAGE TERMINAL_NO_COLOR
 #endif
 
 namespace std {
@@ -131,66 +131,128 @@ boost::format messageHandler(std::string_view messageFormat, Args... args) {
   return doFormat(std::move(format), args...);
 }
 
-/**\brief print log messages to console
- */
-inline void log(Severity                                           severity,
-                std::string_view                                   fileName,
-                int                                                lineNumber,
-                std::string_view                                   functionName,
-                std::chrono::time_point<std::chrono::system_clock> timePoint,
-                std::thread::id                                    threadId,
-                boost::format                                      message) {
+inline std::string
+getRecord(Severity                                           severity,
+          std::string_view                                   fileName,
+          int                                                lineNumber,
+          std::string_view                                   functionName,
+          std::chrono::time_point<std::chrono::system_clock> timePoint,
+          std::thread::id                                    threadId,
+          boost::format                                      message) {
   boost::format standardLogFormat{STANDARD_LOG_FORMAT};
   standardLogFormat.exceptions(boost::io::all_error_bits ^
                                boost::io::too_many_args_bit);
 
-  std::ostream *stream;
-
   switch (severity) {
   case Severity::Info:
-    stream = &std::cout;
     standardLogFormat % INFO_SEVERITY % COLOR_INFO;
     break;
   case Severity::Debug:
-    stream = &std::cerr;
     standardLogFormat % DEBUG_SEVERITY % COLOR_DEBUG;
     break;
   case Severity::Warning:
-    stream = &std::cerr;
     standardLogFormat % WARNING_SEVERITY % COLOR_WARNING;
     break;
   case Severity::Error:
-    stream = &std::cerr;
     standardLogFormat % ERROR_SEVERITY % COLOR_ERROR;
     break;
   case Severity::Failure:
-    stream = &std::cerr;
     standardLogFormat % FAILURE_SEVERITY % COLOR_FAILURE;
     break;
   case Severity::Throw:
-    stream = &std::cerr;
     standardLogFormat % FAILURE_SEVERITY % COLOR_THROW;
   }
 
   standardLogFormat % fileName % lineNumber % functionName % timePoint %
       threadId % message;
 
-  *stream << standardLogFormat << std::endl;
-
-  if (Severity::Failure == severity) {
-    exit(EXIT_FAILURE);
-  }
+  return standardLogFormat.str();
 }
+
+class BasicLogger {
+public:
+  virtual ~BasicLogger() = default;
+
+  virtual void log(Severity         severity,
+                   std::string_view fileName,
+                   int              lineNumber,
+                   std::string_view functionName,
+                   std::chrono::time_point<std::chrono::system_clock> timePoint,
+                   std::thread::id                                    threadId,
+                   boost::format message) noexcept = 0;
+};
+
+/**\brief print log messages to terminal
+ */
+class TerminalLogger : public BasicLogger {
+public:
+  void log(Severity                                           severity,
+           std::string_view                                   fileName,
+           int                                                lineNumber,
+           std::string_view                                   functionName,
+           std::chrono::time_point<std::chrono::system_clock> timePoint,
+           std::thread::id                                    threadId,
+           boost::format message) noexcept override {
+    std::ostream *stream;
+
+    switch (severity) {
+    case Severity::Info:
+      stream = &std::cout;
+      break;
+    case Severity::Debug:
+    case Severity::Warning:
+    case Severity::Error:
+    case Severity::Failure:
+    case Severity::Throw:
+      stream = &std::cerr;
+      break;
+    }
+
+    *stream << getRecord(severity,
+                         fileName,
+                         lineNumber,
+                         functionName,
+                         timePoint,
+                         threadId,
+                         std::move(message))
+            << std::endl;
+
+    if (Severity::Failure == severity) {
+      exit(EXIT_FAILURE);
+    }
+  }
+
+  static TerminalLogger &get() {
+    static TerminalLogger logger;
+    return logger;
+  }
+
+private:
+  TerminalLogger() noexcept = default;
+};
+
+class LoggerFactory {
+public:
+  static BasicLogger &get() {
+#ifdef SYS_LOGGING
+    return SysLogger::get();
+#else
+    return TerminalLogger::get();
+#endif
+  }
+};
+
+inline BasicLogger &logger = LoggerFactory::get();
 } // namespace logs
 
 #define LOG_FORMAT(severity, message)                                          \
-  log(severity,                                                                \
-      __FILE__,                                                                \
-      __LINE__,                                                                \
-      __func__,                                                                \
-      std::chrono::system_clock::now(),                                        \
-      std::this_thread::get_id(),                                              \
-      message)
+  logs::logger.log(severity,                                                   \
+                   __FILE__,                                                   \
+                   __LINE__,                                                   \
+                   __func__,                                                   \
+                   std::chrono::system_clock::now(),                           \
+                   std::this_thread::get_id(),                                 \
+                   message)
 
 #ifdef NDEBUG
 

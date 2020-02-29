@@ -1,14 +1,14 @@
 // main.cpp
 // for see all logs you need compile `Debug` version or define `NDEBUG`
 
-// XXX uncomment for get colorized output in console
+// XXX uncomment for get colorized output in terminal
 // #define COLORIZED
 
 // XXX uncomment for get specific log output
 // #define STANDARD_LOG_FORMAT \
-//  CONSOLE_COLOR SEVERITY CONSOLE_NO_COLOR \
-//      ":" FILE_NAME ":" LINE_NUMBER ":" FUNCTION_NAME ":" TIME_POINT \
-//      ":" THREAD_ID ":" CONSOLE_COLOR MESSAGE CONSOLE_NO_COLOR
+//  TIME_POINT " [" THREAD_ID "] " TERMINAL_COLOR SEVERITY TERMINAL_NO_COLOR \
+//             ":" FILE_NAME ":" LINE_NUMBER ":" FUNCTION_NAME \
+//             ": " TERMINAL_COLOR MESSAGE TERMINAL_NO_COLOR
 
 #include "logs.hpp"
 #include <cstdlib>
