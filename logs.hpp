@@ -35,19 +35,6 @@
 #include <string_view>
 #include <thread>
 
-namespace std {
-/**\brief print time
- */
-inline std::ostream &operator<<(
-    std::ostream &                                            stream,
-    const std::chrono::time_point<std::chrono::system_clock> &timePoint) {
-  std::time_t t = std::chrono::system_clock::to_time_t(timePoint);
-  stream << std::put_time(std::localtime(&t), "%c");
-  return stream;
-}
-} // namespace std
-
-namespace logs {
 #define INFO_SEVERITY    "INF"
 #define DEBUG_SEVERITY   "DBG"
 #define WARNING_SEVERITY "WRN"
@@ -95,6 +82,19 @@ namespace logs {
         " " CONSOLE_COLOR MESSAGE CONSOLE_NO_COLOR
 #endif
 
+namespace std {
+/**\brief print time
+ */
+inline std::ostream &operator<<(
+    std::ostream &                                            stream,
+    const std::chrono::time_point<std::chrono::system_clock> &timePoint) {
+  std::time_t t = std::chrono::system_clock::to_time_t(timePoint);
+  stream << std::put_time(std::localtime(&t), "%c");
+  return stream;
+}
+} // namespace std
+
+namespace logs {
 enum class Severity { Info, Debug, Warning, Error, Failure, Throw };
 
 /**\return safety format object for user message
@@ -118,16 +118,15 @@ boost::format doFormat(boost::format format, T arg, Args... args) {
   return doFormat(std::move(format), args...);
 }
 
-template <typename T>
-boost::format messageHandler(T messageFormat) {
+inline boost::format messageHandler(std::string_view messageFormat) {
   boost::format format = getLogFormat(messageFormat);
   return doFormat(std::move(format));
 }
 
 /**\brief formatting user message
  */
-template <typename T, typename... Args>
-boost::format messageHandler(T messageFormat, Args... args) {
+template <typename... Args>
+boost::format messageHandler(std::string_view messageFormat, Args... args) {
   boost::format format = getLogFormat(messageFormat);
   return doFormat(std::move(format), args...);
 }
