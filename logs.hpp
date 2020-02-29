@@ -234,11 +234,7 @@ private:
 class LoggerFactory {
 public:
   static BasicLogger &get() {
-#ifdef SYS_LOGGING
-    return SysLogger::get();
-#else
     return TerminalLogger::get();
-#endif
   }
 };
 
