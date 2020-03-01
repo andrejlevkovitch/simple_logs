@@ -87,9 +87,10 @@
 namespace std {
 /**\brief print time
  */
-inline std::ostream &operator<<(
-    std::ostream &                                            stream,
-    const std::chrono::time_point<std::chrono::system_clock> &timePoint) {
+inline std::ostream &
+operator<<(std::ostream &stream,
+           const std::chrono::time_point<std::chrono::system_clock>
+               &timePoint) noexcept {
   std::time_t t = std::chrono::system_clock::to_time_t(timePoint);
   stream << std::put_time(std::localtime(&t), "%c");
   return stream;
@@ -101,26 +102,26 @@ enum class Severity { Info, Debug, Warning, Error, Failure, Throw };
 
 /**\return safety format object for user message
  */
-inline boost::format getLogFormat(std::string_view format) {
+inline boost::format getLogFormat(std::string_view format) noexcept {
   boost::format retval{std::string{format}};
   retval.exceptions(boost::io::all_error_bits ^ (boost::io::too_few_args_bit |
                                                  boost::io::too_many_args_bit));
   return retval;
 }
 
-inline boost::format doFormat(boost::format format) {
+inline boost::format doFormat(boost::format format) noexcept {
   return format;
 }
 
 /**\brief help function for combine all user arguments in one message
  */
 template <typename T, typename... Args>
-boost::format doFormat(boost::format format, T arg, Args... args) {
+boost::format doFormat(boost::format format, T arg, Args... args) noexcept {
   format % arg;
   return doFormat(std::move(format), args...);
 }
 
-inline boost::format messageHandler(std::string_view messageFormat) {
+inline boost::format messageHandler(std::string_view messageFormat) noexcept {
   boost::format format = getLogFormat(messageFormat);
   return doFormat(std::move(format));
 }
@@ -128,7 +129,8 @@ inline boost::format messageHandler(std::string_view messageFormat) {
 /**\brief formatting user message
  */
 template <typename... Args>
-boost::format messageHandler(std::string_view messageFormat, Args... args) {
+boost::format messageHandler(std::string_view messageFormat,
+                             Args... args) noexcept {
   boost::format format = getLogFormat(messageFormat);
   return doFormat(std::move(format), args...);
 }
@@ -144,7 +146,7 @@ getRecord(Severity                                           severity,
           std::string_view                                   functionName,
           std::chrono::time_point<std::chrono::system_clock> timePoint,
           std::thread::id                                    threadId,
-          boost::format                                      message) {
+          boost::format                                      message) noexcept {
   boost::format standardLogFormat{STANDARD_LOG_FORMAT};
   standardLogFormat.exceptions(boost::io::all_error_bits ^
                                boost::io::too_many_args_bit);
@@ -228,7 +230,7 @@ public:
     }
   }
 
-  static TerminalLogger &get() {
+  static TerminalLogger &get() noexcept {
     static TerminalLogger logger;
     return logger;
   }
@@ -239,7 +241,7 @@ private:
 
 class LoggerFactory {
 public:
-  static BasicLogger &get() {
+  static BasicLogger &get() noexcept {
     return TerminalLogger::get();
   }
 };
