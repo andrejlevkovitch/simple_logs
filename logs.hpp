@@ -1,6 +1,6 @@
 // logs.hpp
 /**\file
- * If you want colorized color in console then just define `COLORIZED`.
+ * If you want colorized color in terminal then just define `COLORIZED`.
  *
  * Also you can set your own specific format for your message. For do it you
  * need define `STANDARD_LOG_FORMAT` macro as c-string. The string can contains
@@ -41,7 +41,7 @@
 #define ERROR_SEVERITY   "ERR"
 #define FAILURE_SEVERITY "FLR"
 
-// for bash console
+// for bash terminal
 #ifdef COLORIZED
 #  define TERMINAL_NO_COLOR "\033[0m"
 #  define TERMINAL_BLUE     "\033[1;34m"
@@ -133,6 +133,10 @@ boost::format messageHandler(std::string_view messageFormat, Args... args) {
   return doFormat(std::move(format), args...);
 }
 
+/**\brief combine message and metadata to one rectord for logging by
+ * STANDARD_LOG_FORMAT
+ * \see STANDARD_LOG_FORMAT
+ */
 inline std::string
 getRecord(Severity                                           severity,
           std::string_view                                   fileName,
@@ -239,18 +243,16 @@ public:
     return TerminalLogger::get();
   }
 };
-
-inline BasicLogger &logger = LoggerFactory::get();
 } // namespace logs
 
 #define LOG_FORMAT(severity, message)                                          \
-  logs::logger.log(severity,                                                   \
-                   __FILE__,                                                   \
-                   __LINE__,                                                   \
-                   __func__,                                                   \
-                   std::chrono::system_clock::now(),                           \
-                   std::this_thread::get_id(),                                 \
-                   message)
+  logs::LoggerFactory::get().log(severity,                                     \
+                                 __FILE__,                                     \
+                                 __LINE__,                                     \
+                                 __func__,                                     \
+                                 std::chrono::system_clock::now(),             \
+                                 std::this_thread::get_id(),                   \
+                                 message)
 
 #ifdef NDEBUG
 
