@@ -198,7 +198,7 @@ public:
 
 /**\brief print log messages to terminal
  */
-class TerminalLogger : public BasicLogger {
+class TerminalLogger final : public BasicLogger {
 public:
   void log(Severity                                           severity,
            std::string_view                                   fileName,
@@ -243,9 +243,12 @@ public:
 
 private:
   TerminalLogger() noexcept = default;
+
+  TerminalLogger(const TerminalLogger &) = delete;
+  TerminalLogger(TerminalLogger &&)      = delete;
 };
 
-class LoggerFactory {
+class LoggerFactory final {
 public:
   static BasicLogger &get() noexcept {
     return TerminalLogger::get();
@@ -253,13 +256,22 @@ public:
 };
 } // namespace logs
 
+/**\brief get current time by system call
+ * \warning this is slowly operation, so if you not need logging time you should
+ * redefine the macros
+ */
+#define GET_LOG_TIME() std::chrono::system_clock::now()
+/**\brief get current thread id
+ */
+#define GET_LOG_THREAD_ID() std::this_thread::get_id()
+
 #define LOG_FORMAT(severity, message)                                          \
   logs::LoggerFactory::get().log(severity,                                     \
                                  __FILE__,                                     \
                                  __LINE__,                                     \
                                  __func__,                                     \
-                                 std::chrono::system_clock::now(),             \
-                                 std::this_thread::get_id(),                   \
+                                 GET_LOG_TIME(),                               \
+                                 GET_LOG_THREAD_ID(),                          \
                                  message)
 
 #ifdef NDEBUG
