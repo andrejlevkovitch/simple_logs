@@ -207,29 +207,14 @@ public:
            std::chrono::time_point<std::chrono::system_clock> timePoint,
            std::thread::id                                    threadId,
            boost::format message) noexcept override {
-    std::ostream *stream;
-
-    switch (severity) {
-    case Severity::Info:
-      stream = &std::cout;
-      break;
-    case Severity::Debug:
-    case Severity::Warning:
-    case Severity::Error:
-    case Severity::Failure:
-    case Severity::Throw:
-      stream = &std::cerr;
-      break;
-    }
-
-    *stream << getRecord(severity,
-                         fileName,
-                         lineNumber,
-                         functionName,
-                         timePoint,
-                         threadId,
-                         std::move(message))
-            << std::endl;
+    std::cerr << getRecord(severity,
+                           fileName,
+                           lineNumber,
+                           functionName,
+                           timePoint,
+                           threadId,
+                           std::move(message))
+              << std::endl;
 
     if (Severity::Failure == severity) {
       exit(EXIT_FAILURE);
