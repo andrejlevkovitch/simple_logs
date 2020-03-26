@@ -44,6 +44,7 @@
 #define INFO_SEVERITY    "INF"
 #define DEBUG_SEVERITY   "DBG"
 #define WARNING_SEVERITY "WRN"
+#define THROW_SEVERITY   "THR"
 #define ERROR_SEVERITY   "ERR"
 #define FAILURE_SEVERITY "FLR"
 
@@ -58,18 +59,18 @@
 #  define COLOR_INFO    TERMINAL_BLUE
 #  define COLOR_DEBUG   TERMINAL_GREEN
 #  define COLOR_WARNING TERMINAL_YELLOW
+#  define COLOR_THROW   TERMINAL_YELLOW
 #  define COLOR_ERROR   TERMINAL_RED
 #  define COLOR_FAILURE TERMINAL_RED
-#  define COLOR_THROW   TERMINAL_YELLOW
 #else
 #  define TERMINAL_NO_COLOR ""
 
 #  define COLOR_INFO    ""
 #  define COLOR_DEBUG   ""
 #  define COLOR_WARNING ""
+#  define COLOR_THROW   ""
 #  define COLOR_ERROR   ""
 #  define COLOR_FAILURE ""
-#  define COLOR_THROW   ""
 #endif
 
 // All args set in specific order for formatting
@@ -174,7 +175,7 @@ getRecord(Severity                                           severity,
     standardLogFormat % FAILURE_SEVERITY % COLOR_FAILURE;
     break;
   case Severity::Throw:
-    standardLogFormat % FAILURE_SEVERITY % COLOR_THROW;
+    standardLogFormat % THROW_SEVERITY % COLOR_THROW;
   }
 
   standardLogFormat % fileName % lineNumber % functionName % timePoint %
