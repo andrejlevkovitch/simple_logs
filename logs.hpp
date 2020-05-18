@@ -242,11 +242,14 @@ public:
 };
 } // namespace logs
 
+#ifndef GET_LOG_TIME
 /**\brief get current time by system call
  * \warning this is slowly operation, so if you not need logging time you should
  * redefine the macros
  */
-#define GET_LOG_TIME() std::chrono::system_clock::now()
+#  define GET_LOG_TIME() std::chrono::system_clock::now()
+#endif
+
 /**\brief get current thread id
  */
 #define GET_LOG_THREAD_ID() std::this_thread::get_id()
