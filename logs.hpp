@@ -21,8 +21,13 @@
  * `TERMINAL_NO_COLOR`, otherwise you can get unexpected colorized output.
  * `TERMINAL_COLOR` accept only if `COLORIZED` defined.
  *
- * \warning Logging macroses produce output only if macro `NDEBUG` not defined,
- * BUT! `LOG_THROW` and `LOG_FAILURE` will work even if `NDEBUG` defined!
+ * You can redefine logging macroses as you want. It can be done before
+ * `#include` directive, or after (in second case be shure that you use `#undef`
+ * macro. Also you can redefine `GET_LOG_TIME` for avoid slow system calls
+ *
+ * \warning be careful with redefining `LOG_THROW` and `LOG_FAILURE` macroses,
+ * because it can has unexpected behaviour if `LOG_THROW` doesn't throw
+ * exception or if `LOG_FAILURE` doesn't exit from program
  *
  * \warning be carefull with using logging in destructors. Logger is a static
  * object, but there is no guarantie that it will not destroy before some other
@@ -244,15 +249,17 @@ public:
 
 #ifndef GET_LOG_TIME
 /**\brief get current time by system call
- * \warning this is slowly operation, so if you not need logging time you should
+ * \note this is slowly operation, so if you not need logging time you should
  * redefine the macros
  */
 #  define GET_LOG_TIME() std::chrono::system_clock::now()
 #endif
 
+#ifndef GET_LOG_THREAD_ID
 /**\brief get current thread id
  */
-#define GET_LOG_THREAD_ID() std::this_thread::get_id()
+#  define GET_LOG_THREAD_ID() std::this_thread::get_id()
+#endif
 
 #define LOG_FORMAT(severity, message)                                          \
   logs::LoggerFactory::get().log(severity,                                     \
@@ -263,42 +270,45 @@ public:
                                  GET_LOG_THREAD_ID(),                          \
                                  message)
 
-#ifdef NDEBUG
-
-#  define LOG_INFO(...)
-#  define LOG_DEBUG(...)
-#  define LOG_WARNING(...)
-#  define LOG_ERROR(...)
-
-#else
-
+#ifndef LOG_INFO
 #  define LOG_INFO(...)                                                        \
     LOG_FORMAT(logs::Severity::Info, logs::messageHandler(__VA_ARGS__))
-
-#  define LOG_DEBUG(...)                                                       \
-    LOG_FORMAT(logs::Severity::Debug, logs::messageHandler(__VA_ARGS__))
-
-#  define LOG_WARNING(...)                                                     \
-    LOG_FORMAT(logs::Severity::Warning, logs::messageHandler(__VA_ARGS__))
-
-#  define LOG_ERROR(...)                                                       \
-    LOG_FORMAT(logs::Severity::Error, logs::messageHandler(__VA_ARGS__))
-
 #endif
 
-/**\brief print log and terminate program
- * \warning work even if `NDEBUG` defined
- */
-#define LOG_FAILURE(...)                                                       \
-  LOG_FORMAT(logs::Severity::Failure, logs::messageHandler(__VA_ARGS__))
+#ifndef LOG_DEBUG
+#  define LOG_DEBUG(...)                                                       \
+    LOG_FORMAT(logs::Severity::Debug, logs::messageHandler(__VA_ARGS__))
+#endif
 
+#ifndef LOG_WARNING
+#  define LOG_WARNING(...)                                                     \
+    LOG_FORMAT(logs::Severity::Warning, logs::messageHandler(__VA_ARGS__))
+#endif
+
+#ifndef LOG_ERROR
+#  define LOG_ERROR(...)                                                       \
+    LOG_FORMAT(logs::Severity::Error, logs::messageHandler(__VA_ARGS__))
+#endif
+
+#ifndef LOG_FAILURE
+/**\brief print log and terminate program
+ * \warning be careful with redefining! `LOG_FAILURE` must finish program,
+ * otherwise it can has unexpected behaviour
+ */
+#  define LOG_FAILURE(...)                                                     \
+    LOG_FORMAT(logs::Severity::Failure, logs::messageHandler(__VA_ARGS__))
+#endif
+
+#ifndef LOG_THROW
 /**\brief print log and generate specified exception
  * \param ExceptionType type of generated exception
- * \warning work even if `NDEBUG` defined
+ * \warning be careful with redefining! `LOG_THROW` must throw needed exception,
+ * otherwise it can has unexpected behaviour
  */
-#define LOG_THROW(ExceptionType, ...)                                          \
-  {                                                                            \
-    boost::format fmt = logs::messageHandler(__VA_ARGS__);                     \
-    LOG_FORMAT(logs::Severity::Throw, fmt);                                    \
-    throw ExceptionType{fmt.str()};                                            \
-  }
+#  define LOG_THROW(ExceptionType, ...)                                        \
+    {                                                                          \
+      boost::format fmt = logs::messageHandler(__VA_ARGS__);                   \
+      LOG_FORMAT(logs::Severity::Throw, fmt);                                  \
+      throw ExceptionType{fmt.str()};                                          \
+    }
+#endif
