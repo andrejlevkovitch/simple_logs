@@ -25,6 +25,10 @@
  * `#include` directive, or after (in second case be shure that you use `#undef`
  * macro. Also you can redefine `GET_LOG_TIME` for avoid slow system calls
  *
+ * For specify you own logger you need:
+ * 1. inherit your logger from logs::BasicLogger @see logs::BasicLogger
+ * 2. redefine LOGGER with your logger @see LOGGER
+ *
  * \warning be careful with redefining `LOG_THROW` and `LOG_FAILURE` macroses,
  * because it can has unexpected behaviour if `LOG_THROW` doesn't throw
  * exception or if `LOG_FAILURE` doesn't exit from program
@@ -110,7 +114,7 @@ operator<<(std::ostream &stream,
 } // namespace std
 
 namespace logs {
-enum class Severity { Info, Debug, Warning, Error, Failure, Throw };
+enum class Severity { Info, Debug, Warning, Throw, Error, Failure };
 
 /**\return safety format object for user message
  */
@@ -238,13 +242,6 @@ private:
   TerminalLogger(const TerminalLogger &) = delete;
   TerminalLogger(TerminalLogger &&)      = delete;
 };
-
-class LoggerFactory final {
-public:
-  static BasicLogger &get() noexcept {
-    return TerminalLogger::get();
-  }
-};
 } // namespace logs
 
 #ifndef GET_LOG_TIME
@@ -261,14 +258,20 @@ public:
 #  define GET_LOG_THREAD_ID() std::this_thread::get_id()
 #endif
 
-#define LOG_FORMAT(severity, message)                                          \
-  logs::LoggerFactory::get().log(severity,                                     \
-                                 __FILE__,                                     \
-                                 __LINE__,                                     \
-                                 __func__,                                     \
-                                 GET_LOG_TIME(),                               \
-                                 GET_LOG_THREAD_ID(),                          \
-                                 message)
+#ifndef LOGGER
+#  define LOGGER logs::TerminalLogger::get()
+#endif
+
+#ifndef LOG_FORMAT
+#  define LOG_FORMAT(severity, message)                                        \
+    LOGGER.log(severity,                                                       \
+               __FILE__,                                                       \
+               __LINE__,                                                       \
+               __func__,                                                       \
+               GET_LOG_TIME(),                                                 \
+               GET_LOG_THREAD_ID(),                                            \
+               message)
+#endif
 
 #ifndef LOG_INFO
 #  define LOG_INFO(...)                                                        \
