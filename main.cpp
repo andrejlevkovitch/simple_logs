@@ -10,7 +10,7 @@
 //             ":" FILE_NAME ":" LINE_NUMBER ":" FUNCTION_NAME \
 //             ": " TERMINAL_COLOR MESSAGE TERMINAL_NO_COLOR
 
-#include "logs.hpp"
+#include "simple_logs/logs.hpp"
 #include <cstdlib>
 
 int main(int argc, char *argv[]) {
