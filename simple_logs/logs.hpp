@@ -79,7 +79,109 @@ operator<<(std::ostream &stream,
 } // namespace std
 
 namespace logs {
-enum class Severity { Info, Debug, Warning, Throw, Error, Failure };
+enum class Severity {
+  /// use in predicates
+  Placeholder,
+  Info,
+  Debug,
+  Warning,
+  Throw,
+  Error,
+  Failure
+};
+
+class SeverityPredicat {
+public:
+  explicit SeverityPredicat(std::function<bool(Severity)> foo) noexcept
+      : predicate_{std::move(foo)} {
+  }
+
+  SeverityPredicat(Severity sev) noexcept
+      : predicate_{[sev](Severity input) {
+        return static_cast<int>(sev) == static_cast<int>(input);
+      }} {
+  }
+
+  bool operator()(Severity input) const {
+    return predicate_(input);
+  }
+
+  operator bool() {
+    return predicate_.operator bool();
+  }
+
+private:
+  std::function<bool(Severity)> predicate_;
+};
+
+inline SeverityPredicat operator&&(const SeverityPredicat &lhs,
+                                   const SeverityPredicat &rhs) {
+  SeverityPredicat retval{[lhs, rhs](Severity input) {
+    return lhs(input) && rhs(input);
+  }};
+  return retval;
+}
+
+inline SeverityPredicat operator||(const SeverityPredicat &lhs,
+                                   const SeverityPredicat &rhs) {
+  SeverityPredicat retval{[lhs, rhs](Severity input) {
+    return lhs(input) || rhs(input);
+  }};
+  return retval;
+}
+
+[[noreturn]] inline bool invalidPredicate(Severity) {
+  throw std::runtime_error{"invalid predicate calling"};
+}
+
+inline SeverityPredicat
+makePredicate(Severity                      lhs,
+              Severity                      rhs,
+              std::function<bool(int, int)> op) noexcept {
+  if (lhs == Severity::Placeholder) {
+    return SeverityPredicat{[checkVal = rhs, op = op](Severity input) {
+      return op(static_cast<int>(input), static_cast<int>(checkVal));
+    }};
+  } else if (rhs == Severity::Placeholder) {
+    return SeverityPredicat{[checkVal = lhs, op = op](Severity input) {
+      return op(static_cast<int>(checkVal), static_cast<int>(input));
+    }};
+  } else {
+    if (op(static_cast<int>(lhs), static_cast<int>(rhs))) {
+      return SeverityPredicat{invalidPredicate}; // convertible to true
+    }
+
+    return SeverityPredicat{nullptr}; // convertible to false
+  }
+}
+
+inline SeverityPredicat operator!=(Severity lhs, Severity rhs) {
+  return makePredicate(lhs, rhs, std::not_equal_to<int>());
+}
+
+inline SeverityPredicat operator==(Severity lhs, Severity rhs) {
+  return makePredicate(lhs, rhs, std::equal_to<int>());
+}
+
+inline SeverityPredicat operator<(Severity lhs, Severity rhs) {
+  return makePredicate(lhs, rhs, std::less<int>());
+}
+
+inline SeverityPredicat operator>(Severity lhs, Severity rhs) {
+  return makePredicate(lhs, rhs, std::greater<int>());
+}
+
+inline SeverityPredicat operator<=(Severity lhs, Severity rhs) {
+  return makePredicate(lhs, rhs, std::less_equal<int>());
+}
+
+inline SeverityPredicat operator>=(Severity lhs, Severity rhs) {
+  return makePredicate(lhs, rhs, std::greater_equal<int>());
+}
+
+inline SeverityPredicat operator!(Severity val) {
+  return makePredicate(Severity::Placeholder, val, std::not_equal_to<int>());
+}
 
 /**\return safety format object for user message
  */
@@ -150,6 +252,10 @@ getRecord(Severity                                           severity,
     break;
   case Severity::Throw:
     standardLogFormat % THROW_SEVERITY;
+    break;
+  default:
+    assert(false && "invalid severity");
+    break;
   }
 
   standardLogFormat % fileName % lineNumber % functionName % timePoint %
@@ -160,6 +266,9 @@ getRecord(Severity                                           severity,
 
 class BasicLogger {
 public:
+  BasicLogger() noexcept
+      : filter_{Severity::Placeholder >= Severity::Info} {
+  }
   virtual ~BasicLogger() = default;
 
   virtual void log(Severity         severity,
@@ -169,6 +278,21 @@ public:
                    std::chrono::time_point<std::chrono::system_clock> timePoint,
                    std::thread::id                                    threadId,
                    boost::format message) noexcept = 0;
+
+  SeverityPredicat getFilter() const noexcept {
+    return filter_;
+  }
+
+  void setFilter(SeverityPredicat filter) noexcept {
+    if (filter) {
+      filter_ = filter;
+    } else {
+      filter_ = Severity::Placeholder >= Severity::Info;
+    }
+  }
+
+private:
+  SeverityPredicat filter_;
 };
 
 /**\brief print log messages to terminal
@@ -190,10 +314,6 @@ public:
                            threadId,
                            std::move(message))
               << std::endl;
-
-    if (Severity::Failure == severity) {
-      exit(EXIT_FAILURE);
-    }
   }
 
   static TerminalLogger &get() noexcept {
@@ -211,7 +331,7 @@ private:
 
 #ifndef GET_LOG_TIME
 /**\brief get current time by system call
- * \note this is slowly operation, so if you not need logging time you should
+ * \warning this is slowly operation, so if you not need logging time you should
  * redefine the macros
  */
 #  define GET_LOG_TIME() std::chrono::system_clock::now()
@@ -228,14 +348,18 @@ private:
 #endif
 
 #ifndef LOG_FORMAT
+/**\note that LOG_FORMAT use logger filter for filtering logs
+ */
 #  define LOG_FORMAT(severity, message)                                        \
-    LOGGER.log(severity,                                                       \
-               __FILE__,                                                       \
-               __LINE__,                                                       \
-               __func__,                                                       \
-               GET_LOG_TIME(),                                                 \
-               GET_LOG_THREAD_ID(),                                            \
-               message)
+    if (LOGGER.getFilter()(severity)) {                                        \
+      LOGGER.log(severity,                                                     \
+                 __FILE__,                                                     \
+                 __LINE__,                                                     \
+                 __func__,                                                     \
+                 GET_LOG_TIME(),                                               \
+                 GET_LOG_THREAD_ID(),                                          \
+                 message);                                                     \
+    }
 #endif
 
 #ifndef LOG_INFO
@@ -264,7 +388,8 @@ private:
  * otherwise it can has unexpected behaviour
  */
 #  define LOG_FAILURE(...)                                                     \
-    LOG_FORMAT(logs::Severity::Failure, logs::messageHandler(__VA_ARGS__))
+    LOG_FORMAT(logs::Severity::Failure, logs::messageHandler(__VA_ARGS__));    \
+    exit(EXIT_FAILURE)
 #endif
 
 #ifndef LOG_THROW
