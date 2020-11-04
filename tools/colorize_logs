@@ -1,5 +1,6 @@
 #!/bin/bash
-# colorize default logs
+# colorize default logs for standard logs format
+
 
 TERMINAL_NO_COLOR="\033[0m"
 TERMINAL_BLUE="\033[1;34m"
@@ -7,9 +8,14 @@ TERMINAL_GREEN="\033[1;32m"
 TERMINAL_YELLOW="\033[1;33m"
 TERMINAL_RED="\033[1;31m"
 
+MESSAGE_PREFIX="|"
+
 while read -r line; do
-  severity=$(echo "$line" | grep -io "\[[[:alpha:]]*\]" | head -1)
-  severity=${severity:1:-1}
+  severity=${line:0:3}
+  meta="${line% $MESSAGE_PREFIX *}"
+  meta="${meta:4}"
+  msg="${line#* $MESSAGE_PREFIX }"
+
 
   color_off=$TERMINAL_NO_COLOR
   color_on=$TERMINAL_NO_COLOR
@@ -35,9 +41,6 @@ while read -r line; do
   esac
 
 
-  line_arr=($line)
-  location=${line_arr[1]}
-  msg=${line_arr[*]:2}
-  out_line="$color_on[$severity]$color_off $location $color_on$msg$color_off"
+  out_line="$color_on[$severity]$color_off $meta $MESSAGE_PREFIX $color_on$msg$color_off"
   echo -e "$out_line"
 done

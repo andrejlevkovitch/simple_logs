@@ -1,7 +1,7 @@
 // logs.hpp
 /**\file
- * Also you can set your own specific format for your message. For do it you
- * need define `STANDARD_LOG_FORMAT` macro as c-string. The string can contains
+ * You can set your own specific format for your message. For do it you
+ * need define `DEFAULT_LOG_FORMAT` macro as c-string. The string can contains
  * 8 items defined by:
  *
  * - `SEVERITY`
@@ -14,13 +14,12 @@
  *
  * You can combain the defines as you want.
  *
+ * Also you can create you own format with some other entities, but note, that
+ * you need your own frontend for it \see BasicFrontend.
+ *
  * You can redefine logging macroses as you want. It can be done before
  * `#include` directive, or after (in second case be shure that you use `#undef`
- * macro. Also you can redefine `GET_LOG_TIME` for avoid slow system calls
- *
- * For specify you own logger you need:
- * 1. inherit your logger from logs::BasicLogger @see logs::BasicLogger
- * 2. redefine LOGGER with your logger @see LOGGER
+ * macro.
  *
  * \warning be careful with redefining `LOG_THROW` and `LOG_FAILURE` macroses,
  * because it can has unexpected behaviour if `LOG_THROW` doesn't throw
@@ -40,6 +39,7 @@
 #include <cstdlib>
 #include <iomanip>
 #include <iostream>
+#include <list>
 #include <string_view>
 #include <thread>
 
@@ -59,10 +59,17 @@
 #define THREAD_ID     "%6%"
 #define MESSAGE       "%7%"
 
-#ifndef STANDARD_LOG_FORMAT
-/// default logging format
-#  define STANDARD_LOG_FORMAT                                                  \
-    "[" SEVERITY "] " FILE_NAME ":" LINE_NUMBER " " MESSAGE
+#define MESSAGE_PREFIX "|"
+
+#define STANDARD_LOG_FORMAT                                                    \
+  SEVERITY " " THREAD_ID " [" TIME_POINT "] " FILE_NAME ":" LINE_NUMBER        \
+           " " FUNCTION_NAME " " MESSAGE_PREFIX " " MESSAGE
+
+#define LIGHT_LOG_FORMAT                                                       \
+  SEVERITY " " FILE_NAME ":" LINE_NUMBER " " MESSAGE_PREFIX " " MESSAGE
+
+#ifndef DEFAULT_LOG_FORMAT
+#  define DEFAULT_LOG_FORMAT LIGHT_LOG_FORMAT
 #endif
 
 namespace std {
@@ -264,102 +271,199 @@ getRecord(Severity                                           severity,
   return standardLogFormat.str();
 }
 
-class BasicLogger {
+class BasicFrontend {
 public:
-  BasicLogger() noexcept
+  BasicFrontend()
       : filter_{Severity::Placeholder >= Severity::Info} {
   }
-  virtual ~BasicLogger() = default;
+  virtual ~BasicFrontend() = default;
 
-  virtual void log(Severity         severity,
-                   std::string_view fileName,
-                   int              lineNumber,
-                   std::string_view functionName,
-                   std::chrono::time_point<std::chrono::system_clock> timePoint,
-                   std::thread::id                                    threadId,
-                   boost::format message) noexcept = 0;
+  virtual std::string getRecord(Severity         severity,
+                                std::string_view fileName,
+                                int              lineNumber,
+                                std::string_view functionName,
+                                boost::format    message) const noexcept = 0;
+
+  void setFilter(SeverityPredicat filter) noexcept {
+    filter_ = std::move(filter);
+  }
 
   SeverityPredicat getFilter() const noexcept {
     return filter_;
-  }
-
-  void setFilter(SeverityPredicat filter) noexcept {
-    if (filter) {
-      filter_ = filter;
-    } else {
-      filter_ = Severity::Placeholder >= Severity::Info;
-    }
   }
 
 private:
   SeverityPredicat filter_;
 };
 
-/**\brief print log messages to terminal
- */
-class TerminalLogger final : public BasicLogger {
+class StandardFrontend final : public BasicFrontend {
 public:
-  void log(Severity                                           severity,
-           std::string_view                                   fileName,
-           int                                                lineNumber,
-           std::string_view                                   functionName,
-           std::chrono::time_point<std::chrono::system_clock> timePoint,
-           std::thread::id                                    threadId,
-           boost::format message) noexcept override {
-    std::cerr << getRecord(severity,
-                           fileName,
-                           lineNumber,
-                           functionName,
-                           timePoint,
-                           threadId,
-                           std::move(message))
-              << std::endl;
+  std::string getRecord(Severity         severity,
+                        std::string_view fileName,
+                        int              lineNumber,
+                        std::string_view functionName,
+                        boost::format    message) const noexcept override {
+    boost::format standardLogFormat{STANDARD_LOG_FORMAT};
+    standardLogFormat.exceptions(boost::io::all_error_bits ^
+                                 boost::io::too_many_args_bit);
+
+    switch (severity) {
+    case Severity::Info:
+      standardLogFormat % INFO_SEVERITY;
+      break;
+    case Severity::Debug:
+      standardLogFormat % DEBUG_SEVERITY;
+      break;
+    case Severity::Warning:
+      standardLogFormat % WARNING_SEVERITY;
+      break;
+    case Severity::Error:
+      standardLogFormat % ERROR_SEVERITY;
+      break;
+    case Severity::Failure:
+      standardLogFormat % FAILURE_SEVERITY;
+      break;
+    case Severity::Throw:
+      standardLogFormat % THROW_SEVERITY;
+      break;
+    default:
+      assert(false && "invalid severity");
+      break;
+    }
+
+    standardLogFormat % fileName % lineNumber % functionName %
+        std::chrono::system_clock::now() % std::this_thread::get_id() % message;
+
+    return standardLogFormat.str();
+  }
+};
+
+/**\brief like a StandardFrontend, but don't use time
+ */
+class LightFrontend final : public BasicFrontend {
+public:
+  std::string getRecord(Severity         severity,
+                        std::string_view fileName,
+                        int              lineNumber,
+                        std::string_view functionName,
+                        boost::format    message) const noexcept override {
+    boost::format standardLogFormat{LIGHT_LOG_FORMAT};
+    standardLogFormat.exceptions(boost::io::all_error_bits ^
+                                 boost::io::too_many_args_bit);
+
+    switch (severity) {
+    case Severity::Info:
+      standardLogFormat % INFO_SEVERITY;
+      break;
+    case Severity::Debug:
+      standardLogFormat % DEBUG_SEVERITY;
+      break;
+    case Severity::Warning:
+      standardLogFormat % WARNING_SEVERITY;
+      break;
+    case Severity::Error:
+      standardLogFormat % ERROR_SEVERITY;
+      break;
+    case Severity::Failure:
+      standardLogFormat % FAILURE_SEVERITY;
+      break;
+    case Severity::Throw:
+      standardLogFormat % THROW_SEVERITY;
+      break;
+    default:
+      assert(false && "invalid severity");
+      break;
+    }
+
+    standardLogFormat % fileName % lineNumber % functionName % "" %
+        std::this_thread::get_id() % message;
+
+    return standardLogFormat.str();
+  }
+};
+
+class BasicBackend {
+public:
+  virtual ~BasicBackend()                                = default;
+  virtual void consume(std::string_view record) noexcept = 0;
+};
+
+class TextStreamBackend final : public BasicBackend {
+public:
+  explicit TextStreamBackend(std::ostream &stream)
+      : stream_{stream} {
   }
 
-  static TerminalLogger &get() noexcept {
-    static TerminalLogger logger;
+  void consume(std::string_view record) noexcept {
+    stream_ << record << std::endl;
+  }
+
+private:
+  std::ostream &stream_;
+};
+
+struct Sink {
+  std::shared_ptr<BasicFrontend> frontend;
+  std::shared_ptr<BasicBackend>  backend;
+};
+
+class SimpleLogger {
+public:
+  void log(Severity         severity,
+           std::string_view fileName,
+           int              lineNumber,
+           std::string_view functionName,
+           boost::format    message) noexcept {
+    for (Sink &sink : sinks_) {
+      if (sink.frontend->getFilter()(severity)) {
+        std::string record = sink.frontend->getRecord(severity,
+                                                      fileName,
+                                                      lineNumber,
+                                                      functionName,
+                                                      message);
+        sink.backend->consume(record);
+      }
+    }
+  }
+
+  /**\throw exception if frontend or backend are invalid
+   */
+  void addSink(Sink sink) noexcept(false) {
+    if (sink.frontend == nullptr) {
+      throw std::invalid_argument{"invalid logger frontend"};
+    }
+    if (sink.backend == nullptr) {
+      throw std::invalid_argument{"invalid logger backend"};
+    }
+
+    sinks_.emplace_back(std::move(sink));
+  }
+
+  static SimpleLogger &get() noexcept {
+    static SimpleLogger logger;
     return logger;
   }
 
 private:
-  TerminalLogger() noexcept = default;
+  SimpleLogger() noexcept {
+  }
 
-  TerminalLogger(const TerminalLogger &) = delete;
-  TerminalLogger(TerminalLogger &&)      = delete;
+  SimpleLogger(const SimpleLogger &) = delete;
+  SimpleLogger(SimpleLogger &&)      = delete;
+
+private:
+  std::list<Sink> sinks_;
 };
 } // namespace logs
 
-#ifndef GET_LOG_TIME
-/**\brief get current time by system call
- * \warning this is slowly operation, so if you not need logging time you should
- * redefine the macros
- */
-#  define GET_LOG_TIME() std::chrono::system_clock::now()
-#endif
+#define LOGGER logs::SimpleLogger::get()
 
-#ifndef GET_LOG_THREAD_ID
-/**\brief get current thread id
- */
-#  define GET_LOG_THREAD_ID() std::this_thread::get_id()
-#endif
-
-#ifndef LOGGER
-#  define LOGGER logs::TerminalLogger::get()
-#endif
+#define LOGGER_ADD_SINK(frontend, backend)                                     \
+  LOGGER.addSink(logs::Sink{frontend, backend})
 
 #ifndef LOG_FORMAT
-/**\note that LOG_FORMAT use logger filter for filtering logs
- */
 #  define LOG_FORMAT(severity, message)                                        \
-    if (LOGGER.getFilter()(severity)) {                                        \
-      LOGGER.log(severity,                                                     \
-                 __FILE__,                                                     \
-                 __LINE__,                                                     \
-                 __func__,                                                     \
-                 GET_LOG_TIME(),                                               \
-                 GET_LOG_THREAD_ID(),                                          \
-                 message);                                                     \
-    }
+    LOGGER.log(severity, __FILE__, __LINE__, __func__, message);
 #endif
 
 #ifndef LOG_INFO
