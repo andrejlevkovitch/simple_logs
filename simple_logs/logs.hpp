@@ -1,13 +1,10 @@
 // logs.hpp
 /**\file
- * If you want colorized color in terminal then just define `COLORIZED`.
- *
  * Also you can set your own specific format for your message. For do it you
  * need define `STANDARD_LOG_FORMAT` macro as c-string. The string can contains
  * 8 items defined by:
  *
  * - `SEVERITY`
- * - `TERMINAL_COLOR` - specially for logging to terminal
  * - `FILE_NAME`
  * - `LINE_NUMBER`
  * - `FUNCTION_NAME`
@@ -16,10 +13,6 @@
  * - `MESSAGE`
  *
  * You can combain the defines as you want.
- *
- * Also you must know that after every `TERMINAL_COLOR` must be
- * `TERMINAL_NO_COLOR`, otherwise you can get unexpected colorized output.
- * `TERMINAL_COLOR` accept only if `COLORIZED` defined.
  *
  * You can redefine logging macroses as you want. It can be done before
  * `#include` directive, or after (in second case be shure that you use `#undef`
@@ -57,47 +50,19 @@
 #define ERROR_SEVERITY   "ERR"
 #define FAILURE_SEVERITY "FLR"
 
-// for bash terminal
-#ifdef COLORIZED
-#  define TERMINAL_NO_COLOR "\033[0m"
-#  define TERMINAL_BLUE     "\033[1;34m"
-#  define TERMINAL_GREEN    "\033[1;32m"
-#  define TERMINAL_YELLOW   "\033[1;33m"
-#  define TERMINAL_RED      "\033[1;31m"
-
-#  define COLOR_INFO    TERMINAL_BLUE
-#  define COLOR_DEBUG   TERMINAL_GREEN
-#  define COLOR_WARNING TERMINAL_YELLOW
-#  define COLOR_THROW   TERMINAL_YELLOW
-#  define COLOR_ERROR   TERMINAL_RED
-#  define COLOR_FAILURE TERMINAL_RED
-#else
-#  define TERMINAL_NO_COLOR ""
-
-#  define COLOR_INFO    ""
-#  define COLOR_DEBUG   ""
-#  define COLOR_WARNING ""
-#  define COLOR_THROW   ""
-#  define COLOR_ERROR   ""
-#  define COLOR_FAILURE ""
-#endif
-
 // All args set in specific order for formatting
-#define SEVERITY       "%1%"
-#define TERMINAL_COLOR "%2%"
-#define FILE_NAME      "%3%"
-#define LINE_NUMBER    "%4%"
-#define FUNCTION_NAME  "%5%"
-#define TIME_POINT     "%6%"
-#define THREAD_ID      "%7%"
-#define MESSAGE        "%8%"
+#define SEVERITY      "%1%"
+#define FILE_NAME     "%2%"
+#define LINE_NUMBER   "%3%"
+#define FUNCTION_NAME "%4%"
+#define TIME_POINT    "%5%"
+#define THREAD_ID     "%6%"
+#define MESSAGE       "%7%"
 
 #ifndef STANDARD_LOG_FORMAT
 /// default logging format
 #  define STANDARD_LOG_FORMAT                                                  \
-    TERMINAL_COLOR SEVERITY TERMINAL_NO_COLOR                                  \
-        ":" FILE_NAME ":" LINE_NUMBER                                          \
-        " " TERMINAL_COLOR MESSAGE TERMINAL_NO_COLOR
+    "[" SEVERITY "] " FILE_NAME ":" LINE_NUMBER " " MESSAGE
 #endif
 
 namespace std {
@@ -169,22 +134,22 @@ getRecord(Severity                                           severity,
 
   switch (severity) {
   case Severity::Info:
-    standardLogFormat % INFO_SEVERITY % COLOR_INFO;
+    standardLogFormat % INFO_SEVERITY;
     break;
   case Severity::Debug:
-    standardLogFormat % DEBUG_SEVERITY % COLOR_DEBUG;
+    standardLogFormat % DEBUG_SEVERITY;
     break;
   case Severity::Warning:
-    standardLogFormat % WARNING_SEVERITY % COLOR_WARNING;
+    standardLogFormat % WARNING_SEVERITY;
     break;
   case Severity::Error:
-    standardLogFormat % ERROR_SEVERITY % COLOR_ERROR;
+    standardLogFormat % ERROR_SEVERITY;
     break;
   case Severity::Failure:
-    standardLogFormat % FAILURE_SEVERITY % COLOR_FAILURE;
+    standardLogFormat % FAILURE_SEVERITY;
     break;
   case Severity::Throw:
-    standardLogFormat % THROW_SEVERITY % COLOR_THROW;
+    standardLogFormat % THROW_SEVERITY;
   }
 
   standardLogFormat % fileName % lineNumber % functionName % timePoint %
