@@ -225,52 +225,6 @@ boost::format messageHandler(std::string_view messageFormat,
   return doFormat(std::move(format), args...);
 }
 
-/**\brief combine message and metadata to one rectord for logging by
- * STANDARD_LOG_FORMAT
- * \see STANDARD_LOG_FORMAT
- */
-inline std::string
-getRecord(Severity                                           severity,
-          std::string_view                                   fileName,
-          int                                                lineNumber,
-          std::string_view                                   functionName,
-          std::chrono::time_point<std::chrono::system_clock> timePoint,
-          std::thread::id                                    threadId,
-          boost::format                                      message) noexcept {
-  boost::format standardLogFormat{STANDARD_LOG_FORMAT};
-  standardLogFormat.exceptions(boost::io::all_error_bits ^
-                               boost::io::too_many_args_bit);
-
-  switch (severity) {
-  case Severity::Info:
-    standardLogFormat % INFO_SEVERITY;
-    break;
-  case Severity::Debug:
-    standardLogFormat % DEBUG_SEVERITY;
-    break;
-  case Severity::Warning:
-    standardLogFormat % WARNING_SEVERITY;
-    break;
-  case Severity::Error:
-    standardLogFormat % ERROR_SEVERITY;
-    break;
-  case Severity::Failure:
-    standardLogFormat % FAILURE_SEVERITY;
-    break;
-  case Severity::Throw:
-    standardLogFormat % THROW_SEVERITY;
-    break;
-  default:
-    assert(false && "invalid severity");
-    break;
-  }
-
-  standardLogFormat % fileName % lineNumber % functionName % timePoint %
-      threadId % message;
-
-  return standardLogFormat.str();
-}
-
 class BasicFrontend {
 public:
   BasicFrontend()
@@ -278,13 +232,19 @@ public:
   }
   virtual ~BasicFrontend() = default;
 
-  virtual std::string getRecord(Severity         severity,
-                                std::string_view fileName,
-                                int              lineNumber,
-                                std::string_view functionName,
-                                boost::format    message) const noexcept = 0;
+  virtual std::string makeRecord(Severity         severity,
+                                 std::string_view fileName,
+                                 int              lineNumber,
+                                 std::string_view functionName,
+                                 boost::format    message) const noexcept = 0;
 
-  void setFilter(SeverityPredicat filter) noexcept {
+  /**\throw exception if filter is invalid
+   */
+  void setFilter(SeverityPredicat filter) noexcept(false) {
+    if (!filter) {
+      throw std::invalid_argument{"invalid severity filter"};
+    }
+
     filter_ = std::move(filter);
   }
 
@@ -298,11 +258,11 @@ private:
 
 class StandardFrontend final : public BasicFrontend {
 public:
-  std::string getRecord(Severity         severity,
-                        std::string_view fileName,
-                        int              lineNumber,
-                        std::string_view functionName,
-                        boost::format    message) const noexcept override {
+  std::string makeRecord(Severity         severity,
+                         std::string_view fileName,
+                         int              lineNumber,
+                         std::string_view functionName,
+                         boost::format    message) const noexcept override {
     boost::format standardLogFormat{STANDARD_LOG_FORMAT};
     standardLogFormat.exceptions(boost::io::all_error_bits ^
                                  boost::io::too_many_args_bit);
@@ -342,11 +302,11 @@ public:
  */
 class LightFrontend final : public BasicFrontend {
 public:
-  std::string getRecord(Severity         severity,
-                        std::string_view fileName,
-                        int              lineNumber,
-                        std::string_view functionName,
-                        boost::format    message) const noexcept override {
+  std::string makeRecord(Severity         severity,
+                         std::string_view fileName,
+                         int              lineNumber,
+                         std::string_view functionName,
+                         boost::format    message) const noexcept override {
     boost::format standardLogFormat{LIGHT_LOG_FORMAT};
     standardLogFormat.exceptions(boost::io::all_error_bits ^
                                  boost::io::too_many_args_bit);
@@ -416,11 +376,11 @@ public:
            boost::format    message) noexcept {
     for (Sink &sink : sinks_) {
       if (sink.frontend->getFilter()(severity)) {
-        std::string record = sink.frontend->getRecord(severity,
-                                                      fileName,
-                                                      lineNumber,
-                                                      functionName,
-                                                      message);
+        std::string record = sink.frontend->makeRecord(severity,
+                                                       fileName,
+                                                       lineNumber,
+                                                       functionName,
+                                                       message);
         sink.backend->consume(record);
       }
     }
