@@ -1,19 +1,23 @@
 // main.cpp
-// for see all logs you need compile `Debug` version or define `NDEBUG`
-
-// XXX uncomment for get colorized output in terminal
-// #define COLORIZED
-
-// XXX uncomment for get specific log output
-// #define STANDARD_LOG_FORMAT \
-//  TIME_POINT " [" THREAD_ID "] " TERMINAL_COLOR SEVERITY TERMINAL_NO_COLOR \
-//             ":" FILE_NAME ":" LINE_NUMBER ":" FUNCTION_NAME \
-//             ": " TERMINAL_COLOR MESSAGE TERMINAL_NO_COLOR
 
 #include "simple_logs/logs.hpp"
 #include <cstdlib>
 
 int main(int argc, char *argv[]) {
+  auto coutBackend   = std::make_shared<logs::TextStreamBackend>(std::cout);
+  auto cerrBackend   = std::make_shared<logs::TextStreamBackend>(std::cerr);
+  auto debugFrontend = std::make_shared<logs::LightFrontend>();
+  auto errorFrontend = std::make_shared<logs::LightFrontend>();
+
+  debugFrontend->setFilter(logs::Severity::Placeholder ==
+                               logs::Severity::Debug ||
+                           logs::Severity::Placeholder == logs::Severity::Info);
+  errorFrontend->setFilter(logs::Severity::Placeholder >=
+                           logs::Severity::Warning);
+
+  LOGGER_ADD_SINK(debugFrontend, coutBackend);
+  LOGGER_ADD_SINK(errorFrontend, cerrBackend);
+
   LOG_INFO("argc: %1%", argc);
   LOG_DEBUG("print only first argument: %1%; second argument never print",
             argc,

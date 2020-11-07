@@ -111,6 +111,8 @@ inline std::string toString(Severity sev) {
   default:
     assert(false && "invalid severity");
   }
+
+  return "";
 }
 } // namespace logs
 
@@ -278,7 +280,7 @@ public:
   /**\throw exception if filter is invalid
    */
   void setFilter(SeverityPredicat filter) noexcept(false) {
-    if (!filter) {
+    if (filter == false) {
       throw std::invalid_argument{"invalid severity filter"};
     }
 
@@ -348,7 +350,9 @@ public:
       : stream_{stream} {
   }
 
-  void consume(std::string_view record) noexcept {
+  /**\note uses mutex
+   */
+  void consume(std::string_view record) noexcept override {
     std::lock_guard<std::mutex> lock{mutex_};
     stream_ << record << std::endl;
   }
@@ -370,9 +374,10 @@ public:
            int              lineNumber,
            std::string_view functionName,
            boost::format    message) noexcept {
-    // XXX in case of using several threads here can be a small data race,
-    // because sink creates in main thread, but this function can be called from
-    // other thread. But is ok, becuase we don't change this objects
+    // XXX in case of using several threads here can be a data race, because
+    // sink creates in main thread, but this function can be called from other
+    // thread. But it is ok, becuase we don't change sink, frontend or backend
+    // in this function
     for (Sink &sink : sinks_) {
       if (sink.frontend->getFilter()(severity)) {
         std::string record = sink.frontend->makeRecord(severity,
