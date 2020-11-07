@@ -49,8 +49,9 @@
 #include <string_view>
 #include <thread>
 
-#define INFO_SEVERITY    "INF"
+#define TRACE_SEVERITY   "TRC"
 #define DEBUG_SEVERITY   "DBG"
+#define INFO_SEVERITY    "INF"
 #define WARNING_SEVERITY "WRN"
 #define THROW_SEVERITY   "THR"
 #define ERROR_SEVERITY   "ERR"
@@ -82,8 +83,9 @@ namespace logs {
 enum class Severity {
   /// use in predicates
   Placeholder,
-  Info,
+  Trace,
   Debug,
+  Info,
   Warning,
   Throw,
   Error,
@@ -92,24 +94,20 @@ enum class Severity {
 
 inline std::string toString(Severity sev) {
   switch (sev) {
-  case Severity::Info:
-    return INFO_SEVERITY;
-    break;
+  case Severity::Trace:
+    return TRACE_SEVERITY;
   case Severity::Debug:
     return DEBUG_SEVERITY;
-    break;
+  case Severity::Info:
+    return INFO_SEVERITY;
   case Severity::Warning:
     return WARNING_SEVERITY;
-    break;
   case Severity::Error:
     return ERROR_SEVERITY;
-    break;
   case Severity::Failure:
     return FAILURE_SEVERITY;
-    break;
   case Severity::Throw:
     return THROW_SEVERITY;
-    break;
   default:
     assert(false && "invalid severity");
   }
@@ -267,7 +265,7 @@ boost::format messageHandler(std::string_view messageFormat,
 class BasicFrontend {
 public:
   BasicFrontend()
-      : filter_{Severity::Placeholder >= Severity::Info} {
+      : filter_{Severity::Placeholder >= Severity::Trace} {
   }
   virtual ~BasicFrontend() = default;
 
@@ -431,14 +429,19 @@ private:
     LOGGER.log(severity, __FILE__, __LINE__, __func__, message);
 #endif
 
-#ifndef LOG_INFO
-#  define LOG_INFO(...)                                                        \
-    LOG_FORMAT(logs::Severity::Info, logs::messageHandler(__VA_ARGS__))
+#ifndef LOG_TRACE
+#  define LOG_TRACE(...)                                                       \
+    LOG_FORMAT(logs::Severity::Trace, logs::messageHandler(__VA_ARGS__))
 #endif
 
 #ifndef LOG_DEBUG
 #  define LOG_DEBUG(...)                                                       \
     LOG_FORMAT(logs::Severity::Debug, logs::messageHandler(__VA_ARGS__))
+#endif
+
+#ifndef LOG_INFO
+#  define LOG_INFO(...)                                                        \
+    LOG_FORMAT(logs::Severity::Info, logs::messageHandler(__VA_ARGS__))
 #endif
 
 #ifndef LOG_WARNING
