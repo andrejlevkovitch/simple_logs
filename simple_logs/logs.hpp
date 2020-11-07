@@ -72,19 +72,6 @@
 #  define DEFAULT_LOG_FORMAT LIGHT_LOG_FORMAT
 #endif
 
-namespace std {
-/**\brief print time
- */
-inline std::ostream &
-operator<<(std::ostream &stream,
-           const std::chrono::time_point<std::chrono::system_clock>
-               &timePoint) noexcept {
-  std::time_t t = std::chrono::system_clock::to_time_t(timePoint);
-  stream << std::put_time(std::localtime(&t), "%c");
-  return stream;
-}
-} // namespace std
-
 namespace logs {
 enum class Severity {
   /// use in predicates
@@ -97,6 +84,51 @@ enum class Severity {
   Failure
 };
 
+inline std::string toString(Severity sev) {
+  switch (sev) {
+  case Severity::Info:
+    return INFO_SEVERITY;
+    break;
+  case Severity::Debug:
+    return DEBUG_SEVERITY;
+    break;
+  case Severity::Warning:
+    return WARNING_SEVERITY;
+    break;
+  case Severity::Error:
+    return ERROR_SEVERITY;
+    break;
+  case Severity::Failure:
+    return FAILURE_SEVERITY;
+    break;
+  case Severity::Throw:
+    return THROW_SEVERITY;
+    break;
+  default:
+    assert(false && "invalid severity");
+  }
+}
+} // namespace logs
+
+namespace std {
+/**\brief print time
+ */
+inline std::ostream &
+operator<<(std::ostream &stream,
+           const std::chrono::time_point<std::chrono::system_clock>
+               &timePoint) noexcept {
+  std::time_t t = std::chrono::system_clock::to_time_t(timePoint);
+  stream << std::put_time(std::localtime(&t), "%c");
+  return stream;
+}
+
+inline std::ostream &operator<<(std::ostream &stream, logs::Severity sev) {
+  stream << logs::toString(sev);
+  return stream;
+}
+} // namespace std
+
+namespace logs {
 class SeverityPredicat {
 public:
   explicit SeverityPredicat(std::function<bool(Severity)> foo) noexcept
@@ -267,31 +299,7 @@ public:
     standardLogFormat.exceptions(boost::io::all_error_bits ^
                                  boost::io::too_many_args_bit);
 
-    switch (severity) {
-    case Severity::Info:
-      standardLogFormat % INFO_SEVERITY;
-      break;
-    case Severity::Debug:
-      standardLogFormat % DEBUG_SEVERITY;
-      break;
-    case Severity::Warning:
-      standardLogFormat % WARNING_SEVERITY;
-      break;
-    case Severity::Error:
-      standardLogFormat % ERROR_SEVERITY;
-      break;
-    case Severity::Failure:
-      standardLogFormat % FAILURE_SEVERITY;
-      break;
-    case Severity::Throw:
-      standardLogFormat % THROW_SEVERITY;
-      break;
-    default:
-      assert(false && "invalid severity");
-      break;
-    }
-
-    standardLogFormat % fileName % lineNumber % functionName %
+    standardLogFormat % severity % fileName % lineNumber % functionName %
         std::chrono::system_clock::now() % std::this_thread::get_id() % message;
 
     return standardLogFormat.str();
@@ -311,31 +319,7 @@ public:
     standardLogFormat.exceptions(boost::io::all_error_bits ^
                                  boost::io::too_many_args_bit);
 
-    switch (severity) {
-    case Severity::Info:
-      standardLogFormat % INFO_SEVERITY;
-      break;
-    case Severity::Debug:
-      standardLogFormat % DEBUG_SEVERITY;
-      break;
-    case Severity::Warning:
-      standardLogFormat % WARNING_SEVERITY;
-      break;
-    case Severity::Error:
-      standardLogFormat % ERROR_SEVERITY;
-      break;
-    case Severity::Failure:
-      standardLogFormat % FAILURE_SEVERITY;
-      break;
-    case Severity::Throw:
-      standardLogFormat % THROW_SEVERITY;
-      break;
-    default:
-      assert(false && "invalid severity");
-      break;
-    }
-
-    standardLogFormat % fileName % lineNumber % functionName % "" %
+    standardLogFormat % severity % fileName % lineNumber % functionName % "" %
         std::this_thread::get_id() % message;
 
     return standardLogFormat.str();
