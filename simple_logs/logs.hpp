@@ -1,5 +1,10 @@
 // logs.hpp
 /**\file
+ * Before using logs you need create frontend and backend for logger. You can
+ * use logs::StandardFrontend and logs::TextStreamBackend as default. Just
+ * create std::shared_ptr from this and call LOGGER_ADD_SINK with frontend and
+ * backend as parameters
+ *
  * You can set your own specific format for your message. For do it you
  * need define `DEFAULT_LOG_FORMAT` macro as c-string. The string can contains
  * 8 items defined by:
@@ -40,6 +45,7 @@
 #include <iomanip>
 #include <iostream>
 #include <list>
+#include <mutex>
 #include <string_view>
 #include <thread>
 
@@ -112,6 +118,7 @@ inline std::string toString(Severity sev) {
 
 namespace std {
 /**\brief print time
+ * \note this function is not thread safe
  */
 inline std::ostream &
 operator<<(std::ostream &stream,
@@ -320,7 +327,7 @@ public:
                                  boost::io::too_many_args_bit);
 
     standardLogFormat % severity % fileName % lineNumber % functionName % "" %
-        std::this_thread::get_id() % message;
+        "" % message;
 
     return standardLogFormat.str();
   }
@@ -328,7 +335,12 @@ public:
 
 class BasicBackend {
 public:
-  virtual ~BasicBackend()                                = default;
+  virtual ~BasicBackend() = default;
+
+  /**\brief get record from frontend
+   * \note that this function can call from several threads, so you need prevent
+   * data race by using mutex
+   */
   virtual void consume(std::string_view record) noexcept = 0;
 };
 
@@ -339,11 +351,13 @@ public:
   }
 
   void consume(std::string_view record) noexcept {
+    std::lock_guard<std::mutex> lock{mutex_};
     stream_ << record << std::endl;
   }
 
 private:
   std::ostream &stream_;
+  std::mutex    mutex_;
 };
 
 struct Sink {
@@ -358,6 +372,9 @@ public:
            int              lineNumber,
            std::string_view functionName,
            boost::format    message) noexcept {
+    // XXX in case of using several threads here can be a small data race,
+    // because sink creates in main thread, but this function can be called from
+    // other thread. But is ok, becuase we don't change this objects
     for (Sink &sink : sinks_) {
       if (sink.frontend->getFilter()(severity)) {
         std::string record = sink.frontend->makeRecord(severity,
@@ -402,6 +419,10 @@ private:
 
 #define LOGGER logs::SimpleLogger::get()
 
+/**\brief add new sink for logger
+ * \warning use it before calling any log macroses! And do not add additional
+ * sinks after calling some logging macroses. This can have unexpected behaviour
+ */
 #define LOGGER_ADD_SINK(frontend, backend)                                     \
   LOGGER.addSink(logs::Sink{frontend, backend})
 
