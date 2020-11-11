@@ -20,11 +20,14 @@ while read -r line; do
   color_off=$TERMINAL_NO_COLOR
   color_on=$TERMINAL_NO_COLOR
   case $severity in
-    INF)
-      color_on=$TERMINAL_BLUE
+    TRC)
+      color_on=$TERMINAL_GREEN
       ;;
     DBG)
       color_on=$TERMINAL_GREEN
+      ;;
+    INF)
+      color_on=$TERMINAL_BLUE
       ;;
     WRN)
       color_on=$TERMINAL_YELLOW
