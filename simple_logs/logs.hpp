@@ -238,21 +238,11 @@ inline boost::format getLogFormat(std::string_view format) noexcept {
   return retval;
 }
 
-inline boost::format doFormat(boost::format format) noexcept {
-  return format;
-}
-
 /**\brief help function for combine all user arguments in one message
  */
-template <typename T, typename... Args>
-boost::format doFormat(boost::format format, T arg, Args... args) noexcept {
-  format % arg;
-  return doFormat(std::move(format), args...);
-}
-
-inline boost::format messageHandler(std::string_view messageFormat) noexcept {
-  boost::format format = getLogFormat(messageFormat);
-  return doFormat(std::move(format));
+template <typename... Args>
+boost::format doFormat(boost::format format, Args... args) noexcept {
+  return (format % ... % args);
 }
 
 /**\brief formatting user message
