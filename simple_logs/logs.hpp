@@ -246,6 +246,9 @@ boost::format doFormat(boost::format format, Args... args) noexcept {
 }
 
 /**\brief formatting user message
+ * \note you can get warning about data race in this function at creating
+ * boost::format instance, but it is fine
+ * https://stackoverflow.com/questions/51566505/boostformat-appears-to-not-be-thread-safe-because-stdctypecharnarrow
  */
 template <typename... Args>
 boost::format messageHandler(std::string_view messageFormat,
